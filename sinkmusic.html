@@ -118,6 +118,64 @@
         .btn-popup:hover {
             background: #138496;
         }
+        .sync-slider-container {
+            background: #f8f9fa;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            text-align: center;
+        }
+        .sync-slider-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+        }
+        .sync-slider {
+            width: 95%;
+            max-width: none;
+            height: 12px;
+            border-radius: 6px;
+            background: #ddd;
+            outline: none;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+            margin: 15px 0;
+        }
+        .sync-slider:hover {
+            opacity: 1;
+        }
+        .sync-slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #ff0000;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+        .sync-slider::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #ff0000;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+        .sync-value-display {
+            font-size: 18px;
+            font-weight: bold;
+            color: #ff0000;
+            margin: 10px 0;
+        }
+        .sync-description {
+            font-size: 14px;
+            color: #666;
+            margin-top: 10px;
+        }
         @media (max-width: 768px) {
             .video-container {
                 grid-template-columns: 1fr;
@@ -234,6 +292,13 @@
                         <div id="current-bass-player"></div>
                     </div>
                 </div>
+                <div class="sync-slider-container">
+                    <div class="sync-slider-title">🎵 싱크 조정</div>
+                    <input type="range" id="syncSlider" class="sync-slider" 
+                           min="0" max="12" step="0.1" value="${song.delay}">
+                    <div class="sync-value-display" id="syncValue">${song.delay}초</div>
+                    <div class="sync-description"><-베이스가 빨리 틀어짐을 의미</div>
+                </div>
                 <div class="controls">
                     <button class="btn btn-popup" onclick="openCurrentPopupWindow('guitar')" id="currentGuitarPopupBtn">🎸 기타 새 창으로 열기</button>
                     <button class="btn" onclick="setCurrentSyncDelay()" id="currentSyncBtn">싱크 ${song.delay}초 적용</button>
@@ -246,6 +311,20 @@
         currentSongIdx = idx;
         currentOffsetSeconds = song.delay;
         currentPopupWindows = {};
+        
+        // 슬라이더 이벤트 리스너 추가
+        setTimeout(() => {
+            const slider = document.getElementById('syncSlider');
+            const valueDisplay = document.getElementById('syncValue');
+            
+            if (slider && valueDisplay) {
+                slider.addEventListener('input', function() {
+                    const value = parseFloat(this.value);
+                    currentOffsetSeconds = value;
+                    valueDisplay.textContent = value + '초';
+                });
+            }
+        }, 100);
         
         // 새 플레이어 생성
         setTimeout(() => {
@@ -548,7 +627,19 @@
     // 현재 곡 싱크 설정
     function setCurrentSyncDelay() {
         if (currentSongIdx === -1) return;
-        currentOffsetSeconds = songs[currentSongIdx].delay;
+        
+        const song = songs[currentSongIdx];
+        const slider = document.getElementById('syncSlider');
+        const valueDisplay = document.getElementById('syncValue');
+        
+        // 슬라이더를 원래 곡의 기본값으로 리셋
+        if (slider && valueDisplay) {
+            slider.value = song.delay;
+            valueDisplay.textContent = song.delay + '초';
+            currentOffsetSeconds = song.delay;
+        } else {
+            currentOffsetSeconds = song.delay;
+        }
     }
 
     // 현재 곡 버튼 활성화/비활성화
