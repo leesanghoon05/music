@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SinkMusic - 싱크 모음</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .search-container {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .search-dropdown {
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto 20px auto;
+        }
+        .select2-container--default .select2-selection--single {
+            height: 50px;
+            border: 2px solid #ddd;
+            border-radius: 25px;
+            font-size: 18px;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__rendered {
+            line-height: 46px;
+            padding-left: 20px;
+            color: #666;
+        }
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 46px;
+            right: 15px;
+        }
+        .select2-container--default.select2-container--focus .select2-selection--single {
+            border-color: #ff0000;
+        }
+        .search-results {
+            margin-top: 15px;
+            color: #666;
+            font-size: 14px;
+        }
+        .highlight {
+            background-color: yellow;
+            font-weight: bold;
+        }
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+            font-size: 18px;
+        }
+        .song-block {
+            margin-bottom: 40px;
+            transition: opacity 0.3s;
+        }
+        .song-block.hidden {
+            display: none;
+        }
+        .video-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .video-wrapper {
+            text-align: center;
+            position: relative;
+        }
+        .video-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .controls {
+            text-align: center;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            background: #ff0000;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            margin: 5px 0;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        .btn:hover {
+            background: #cc0000;
+        }
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .btn-popup {
+            background: #17a2b8;
+        }
+        .btn-popup:hover {
+            background: #138496;
+        }
+        @media (max-width: 768px) {
+            .video-container {
+                grid-template-columns: 1fr;
+            }
+            .controls {
+                flex-direction: column;
+                gap: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="search-container">
+            <select id="songSelect" class="search-dropdown">
+                <option value="">🔍 곡을 선택하거나 검색하세요...</option>
+            </select>
+            <div id="searchResults" class="search-results">곡을 선택해주세요</div>
+        </div>
+        <div id="songs-area">
+            <!-- 선택된 곡의 UI가 여기에 렌더링됩니다 -->
+        </div>
+        <div id="noResults" class="no-results" style="display: none;">
+            검색 결과가 없습니다. 다른 키워드로 검색해보세요.
+        </div>
+    </div>
+
+    <script>
+    // 1. 곡 정보 배열 (여기에 곡을 추가하면 됨)
+    const songs = [
+        {
+            title: "만찬가(G2B1)",
+            guitarId: "bXmApI0Yojc",
+            bassId: "xooA8RoU50g",
+            delay: 8.1 // 싱크(초)
+        }
+        // 두 번째 곡은 아래처럼 추가하면 됩니다.
+         ,{
+            title: "폰서트(G4B1)",
+            guitarId: "2sj0Q7XXmeU",
+            bassId: "sMJvI1A3zgw",
+            delay: 11.1
+         }
+
+         ,{
+            title: "별의 하모니(G3B2)",
+            guitarId: "L_iW3A0vZ_M",
+            bassId: "MQBcx_AXtMs",
+            delay: 7.5
+         }
+
+         ,{
+            title: "옥탑방(G2B2)",
+            guitarId: "X0z0uFuCNcs",
+            bassId: "_ovwU2gzx9A",
+            delay: 8
+         }
+
+         ,{
+            title: "에피소드(G4B2)",
+            guitarId: "Fwdwf2Qkz54",
+            bassId: "Rnha83fVUTU",
+            delay: 7.2
+         }
+
+         ,{
+            title: "낙화(G4B3)",
+            guitarId: "6DoA3L-Ifwg",
+            bassId: "aem73t0x3d4",
+            delay: 8
+         }
+    ];       
+
+    // 2. 곡별 플레이어, 팝업, 싱크값 관리
+    let currentPlayer = null; // 현재 표시된 곡의 플레이어
+    let currentPopupWindows = {}; // 현재 곡의 팝업
+    let currentOffsetSeconds = 0; // 현재 곡의 싱크값
+    let currentSongIdx = -1; // 현재 선택된 곡 인덱스
+
+    // 3. 선택된 곡만 렌더링
+    function renderSelectedSong(idx) {
+        const area = document.getElementById('songs-area');
+        const song = songs[idx];
+        
+        // 기존 플레이어 정리
+        if (currentPlayer) {
+            try {
+                if (currentPlayer.guitar) currentPlayer.guitar.destroy();
+                if (currentPlayer.bass) currentPlayer.bass.destroy();
+            } catch (error) {
+                console.log('플레이어 정리 중 오류:', error);
+            }
+        }
+        
+        // 기존 팝업 정리
+        Object.keys(currentPopupWindows).forEach(type => {
+            const popupData = currentPopupWindows[type];
+            if (popupData && popupData.window && !popupData.window.closed) {
+                popupData.window.close();
+            }
+        });
+        
+        // 새 곡 UI 생성
+        area.innerHTML = `
+            <div class="song-block" id="current-song-block">
+                <h2 style="text-align:center; color:#222; margin-bottom:18px;" id="current-song-title">${song.title}</h2>
+                <div class="video-container">
+                    <div class="video-wrapper">
+                        <div class="video-title">🎸 기타 연주</div>
+                        <div id="current-guitar-player"></div>
+                    </div>
+                    <div class="video-wrapper">
+                        <div class="video-title">🎵 베이스 연주</div>
+                        <div id="current-bass-player"></div>
+                    </div>
+                </div>
+                <div class="controls">
+                    <button class="btn btn-popup" onclick="openCurrentPopupWindow('guitar')" id="currentGuitarPopupBtn">🎸 기타 새 창으로 열기</button>
+                    <button class="btn" onclick="setCurrentSyncDelay()" id="currentSyncBtn">싱크 ${song.delay}초 적용</button>
+                    <button class="btn" onclick="playCurrentBoth()" id="currentPlayBtn">▶️ 동시 재생</button>
+                    <button class="btn" onclick="stopCurrentBoth()" id="currentStopBtn">⏹️ 정지</button>
+                </div>
+            </div>
+        `;
+        
+        currentSongIdx = idx;
+        currentOffsetSeconds = song.delay;
+        currentPopupWindows = {};
+        
+        // 새 플레이어 생성
+        setTimeout(() => {
+            createCurrentPlayers(song);
+        }, 100);
+    }
+
+    // 현재 곡의 플레이어 생성
+    function createCurrentPlayers(song) {
+        currentPlayer = {};
+        currentPlayer.guitar = new YT.Player('current-guitar-player', {
+            height: '315',
+            width: '560',
+            videoId: song.guitarId,
+            playerVars: {
+                'controls': 1,
+                'modestbranding': 1,
+                'rel': 0,
+                'fs': 1
+            }
+        });
+        currentPlayer.bass = new YT.Player('current-bass-player', {
+            height: '315',
+            width: '560',
+            videoId: song.bassId,
+            playerVars: {
+                'controls': 1,
+                'modestbranding': 1,
+                'rel': 0,
+                'fs': 1
+            }
+        });
+        
+        // 버튼 활성화
+        setTimeout(() => {
+            enableCurrentButtons(true);
+        }, 1000);
+    }
+
+    // 드롭다운 초기화
+    function initializeDropdown() {
+        const select = $('#songSelect');
+        
+        // 모든 곡을 옵션으로 추가
+        songs.forEach((song, idx) => {
+            select.append(`<option value="${idx}">${song.title}</option>`);
+        });
+
+        // Select2 초기화
+        select.select2({
+            placeholder: "🔍 곡을 선택하거나 검색하세요...",
+            allowClear: true,
+            width: '100%'
+        });
+
+        // 선택 이벤트 처리
+        select.on('change', function() {
+            const selectedIdx = $(this).val();
+            if (selectedIdx !== '') {
+                // 선택된 곡 표시
+                renderSelectedSong(parseInt(selectedIdx));
+                
+                const resultsDiv = document.getElementById('searchResults');
+                resultsDiv.textContent = `선택된 곡: ${songs[selectedIdx].title}`;
+                document.getElementById('noResults').style.display = 'none';
+            } else {
+                // 선택 해제 시 모든 영상 제거
+                clearAllContent();
+            }
+        });
+    }
+
+    // 모든 컨텐츠 제거
+    function clearAllContent() {
+        const area = document.getElementById('songs-area');
+        area.innerHTML = '';
+        
+        // 현재 플레이어 정리
+        if (currentPlayer) {
+            try {
+                if (currentPlayer.guitar) currentPlayer.guitar.destroy();
+                if (currentPlayer.bass) currentPlayer.bass.destroy();
+            } catch (error) {
+                console.log('플레이어 정리 중 오류:', error);
+            }
+            currentPlayer = null;
+        }
+        
+        // 팝업 정리
+        Object.keys(currentPopupWindows).forEach(type => {
+            const popupData = currentPopupWindows[type];
+            if (popupData && popupData.window && !popupData.window.closed) {
+                popupData.window.close();
+            }
+        });
+        currentPopupWindows = {};
+        
+        currentSongIdx = -1;
+        
+        const resultsDiv = document.getElementById('searchResults');
+        resultsDiv.textContent = '곡을 선택해주세요';
+        document.getElementById('noResults').style.display = 'none';
+    }
+
+    // 4. 유튜브 API 로드
+    function loadYouTubeAPI() {
+        const tag = document.createElement('script');
+        tag.src = 'https://www.youtube.com/iframe_api';
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+    }
+
+    // 5. API 준비 완료 콜백
+    function onYouTubeIframeAPIReady() {
+        // 초기에는 아무것도 하지 않음 (곡 선택 시에만 플레이어 생성)
+    }
+
+    // 현재 곡 팝업 윈도우 열기
+    function openCurrentPopupWindow(type) {
+        if (type !== 'guitar' || currentSongIdx === -1) return;
+
+        const song = songs[currentSongIdx];
+        const videoId = song.guitarId;
+        const title = '기타 연주';
+        const windowName = type + '_current_' + Date.now();
+
+        const popup = window.open('', windowName, 'width=900,height=700,scrollbars=no,resizable=yes');
+
+        if (!popup) {
+            alert('팝업이 차단되었습니다. 브라우저에서 팝업을 허용해주세요.');
+            return;
+        }
+
+        // 팝업 HTML 작성
+        popup.document.open();
+        popup.document.write('<!DOCTYPE html>');
+        popup.document.write('<html><head><title>' + title + '</title>');
+        popup.document.write('<style>');
+        popup.document.write('body{margin:0;padding:0;background:black;overflow:hidden;}');
+        popup.document.write('#player{width:100vw;height:100vh;}');
+        popup.document.write('.controls{position:fixed;top:10px;right:10px;z-index:1000;background:rgba(0,0,0,0.7);padding:10px;border-radius:5px;}');
+        popup.document.write('.btn{background:#ff0000;color:white;border:none;padding:8px 12px;margin:2px;border-radius:3px;cursor:pointer;}');
+        popup.document.write('.info{position:fixed;top:10px;left:10px;color:white;background:rgba(0,0,0,0.7);padding:10px;border-radius:5px;font-family:Arial;}');
+        popup.document.write('.status{position:fixed;bottom:50px;left:10px;color:yellow;background:rgba(0,0,0,0.8);padding:5px;border-radius:3px;font-family:Arial;font-size:12px;}');
+        popup.document.write('</style></head><body>');
+        popup.document.write('<div class="controls">');
+        popup.document.write('<div style="color:white;margin-bottom:5px;">' + title + '</div>');
+        popup.document.write('<button class="btn" onclick="toggleFullscreen()">전체화면</button>');
+        popup.document.write('<button class="btn" onclick="window.close()">창 닫기</button>');
+        popup.document.write('</div>');
+        popup.document.write('<div class="info">F11: 전체화면 | ESC: 해제</div>');
+        popup.document.write('<div class="status" id="status">로딩 중...</div>');
+        popup.document.write('<div id="player"></div>');
+        popup.document.write('</body></html>');
+        popup.document.close();
+
+        // 팝업에 스크립트 추가
+        const script1 = popup.document.createElement('script');
+        script1.src = 'https://www.youtube.com/iframe_api';
+        popup.document.head.appendChild(script1);
+
+        const script2 = popup.document.createElement('script');
+        script2.innerHTML = `
+            let player;
+            let isReady = false;
+
+            function updateStatus(msg) {
+                const el = document.getElementById('status');
+                if (el) el.textContent = msg;
+            }
+
+            window.onYouTubeIframeAPIReady = function() {
+                updateStatus('플레이어 생성 중...');
+                player = new YT.Player('player', {
+                    height: '100%',
+                    width: '100%',
+                    videoId: '${videoId}',
+                    playerVars: {
+                        'controls': 1,
+                        'modestbranding': 1,
+                        'rel': 0,
+                        'fs': 1,
+                        'autoplay': 0
+                    },
+                    events: {
+                        'onReady': function() {
+                            isReady = true;
+                            updateStatus('플레이어 준비 완료');
+                            if (window.opener) {
+                                window.opener.postMessage({
+                                    type: 'popupReady',
+                                    windowType: '${type}',
+                                    songIdx: 'current'
+                                }, '*');
+                            }
+                            setTimeout(() => {
+                                const statusEl = document.getElementById('status');
+                                if (statusEl) statusEl.style.display = 'none';
+                            }, 2000);
+                        }
+                    }
+                });
+            };
+
+            function toggleFullscreen() {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen();
+                } else {
+                    document.exitFullscreen();
+                }
+            }
+
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'F11') {
+                    e.preventDefault();
+                    toggleFullscreen();
+                }
+            });
+
+            window.addEventListener('message', function(event) {
+                if (event.data.type === 'control' && player && isReady) {
+                    try {
+                        switch(event.data.action) {
+                            case 'play':
+                                player.playVideo();
+                                break;
+                            case 'stop':
+                                player.stopVideo();
+                                break;
+                            case 'seekTo':
+                                if (event.data.time !== undefined) {
+                                    player.seekTo(event.data.time, true);
+                                }
+                                break;
+                        }
+                    } catch (error) {
+                        console.error('Control error:', error);
+                    }
+                }
+            });
+        `;
+        popup.document.head.appendChild(script2);
+
+        currentPopupWindows[type] = {
+            window: popup,
+            ready: false
+        };
+    }
+
+    // 현재 곡 동시 재생
+    function playCurrentBoth() {
+        if (!currentPlayer || currentSongIdx === -1) return;
+        
+        try {
+            currentPlayer.guitar.playVideo();
+            setTimeout(() => {
+                currentPlayer.bass.playVideo();
+            }, Math.abs(currentOffsetSeconds) * 1000);
+
+            // 팝업에도 재생 신호
+            Object.keys(currentPopupWindows).forEach(type => {
+                const popupData = currentPopupWindows[type];
+                if (popupData && popupData.window && !popupData.window.closed && popupData.ready) {
+                    try {
+                        popupData.window.postMessage({ type: 'control', action: 'play' }, '*');
+                    } catch (error) {
+                        console.error('Message send error:', error);
+                    }
+                }
+            });
+        } catch (error) {
+            console.log('재생 오류:', error);
+        }
+    }
+
+    // 현재 곡 정지
+    function stopCurrentBoth() {
+        if (!currentPlayer || currentSongIdx === -1) return;
+        
+        try {
+            currentPlayer.guitar.stopVideo();
+            currentPlayer.bass.stopVideo();
+
+            // 팝업에도 정지 신호
+            Object.keys(currentPopupWindows).forEach(type => {
+                const popupData = currentPopupWindows[type];
+                if (popupData && popupData.window && !popupData.window.closed && popupData.ready) {
+                    try {
+                        popupData.window.postMessage({ type: 'control', action: 'stop' }, '*');
+                    } catch (error) {
+                        console.error('Message send error:', error);
+                    }
+                }
+            });
+        } catch (error) {
+            console.log('정지 오류:', error);
+        }
+    }
+
+    // 현재 곡 싱크 설정
+    function setCurrentSyncDelay() {
+        if (currentSongIdx === -1) return;
+        currentOffsetSeconds = songs[currentSongIdx].delay;
+    }
+
+    // 현재 곡 버튼 활성화/비활성화
+    function enableCurrentButtons(enabled) {
+        ['currentGuitarPopupBtn', 'currentPlayBtn', 'currentStopBtn', 'currentSyncBtn'].forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) {
+                btn.disabled = !enabled;
+            }
+        });
+    }
+
+    // 팝업 메시지 수신
+    window.addEventListener('message', function(event) {
+        if (event.data.type === 'popupReady' && event.data.songIdx === 'current') {
+            const type = event.data.windowType;
+            if (currentPopupWindows[type]) {
+                currentPopupWindows[type].ready = true;
+            }
+        }
+    });
+
+    // 페이지 언로드 시 정리
+    window.addEventListener('beforeunload', () => {
+        Object.keys(currentPopupWindows).forEach(type => {
+            const popupData = currentPopupWindows[type];
+            if (popupData && popupData.window && !popupData.window.closed) {
+                popupData.window.close();
+            }
+        });
+    });
+
+    // 페이지 로드 시 초기화
+    window.addEventListener('load', () => {
+        loadYouTubeAPI();
+        initializeDropdown();
+    });
+    </script>
+</body>
+</html>
